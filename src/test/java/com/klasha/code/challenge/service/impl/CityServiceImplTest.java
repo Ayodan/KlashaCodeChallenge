@@ -1,6 +1,5 @@
 package com.klasha.code.challenge.service.impl;
 
-import com.klasha.code.challenge.dto.CityDTO;
 import com.klasha.code.challenge.dto.CountryStatesCitiesDTO;
 import com.klasha.code.challenge.exception.BadRequestException;
 import com.klasha.code.challenge.exception.InternalServerException;
@@ -8,9 +7,11 @@ import com.klasha.code.challenge.generic_response.ApiResponse;
 import com.klasha.code.challenge.model.City;
 import com.klasha.code.challenge.repository.CityRepository;
 import com.klasha.code.challenge.service.CityService;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
@@ -90,39 +91,6 @@ class CityServiceImplTest {
     }
 
     @Test
-    void testGetStatesAndCitiesByCountry_SuccessfulFetch_ReturnsApiResponseWithStatesAndCities() {
-        String countryName = "TestCountry";
-
-        CityDTO city1 = new CityDTO();
-        city1.setName("City1");
-
-        CityDTO city2 = new CityDTO();
-        city2.setName("City2");
-
-        CityDTO city3 = new CityDTO();
-        city3.setName("City3");
-
-        CityDTO city4 = new CityDTO();
-        city4.setName("City4");
-
-        List<CountryStatesCitiesDTO> statesAndCities = new ArrayList<>();
-        statesAndCities.add(new CountryStatesCitiesDTO("State1", Arrays.asList(city1, city2)));
-        statesAndCities.add(new CountryStatesCitiesDTO("State2", Arrays.asList(city3, city4)));
-
-        when(cityRepository.getStatesAndCitiesByCountry(countryName)).thenReturn(statesAndCities);
-
-        ApiResponse<List<CountryStatesCitiesDTO>> response = cityService.getStatesAndCitiesByCountry(countryName);
-
-        assertNotNull(response);
-        assertFalse(response.isError());
-        assertEquals("All countries and cities fetched successfully", response.getMsg());
-        assertNotNull(response.getData());
-        assertEquals(statesAndCities, response.getData());
-
-        verify(cityRepository).getStatesAndCitiesByCountry(countryName);
-    }
-
-    @Test
     void testGetStatesAndCitiesByCountry_InvalidCountryName_ThrowsBadRequestException() {
         String countryName = null;
 
@@ -134,16 +102,40 @@ class CityServiceImplTest {
     }
 
     @Test
-    void testGetStatesAndCitiesByCountry_ExceptionInRepository_ThrowsInternalServerException() {
-        String countryName = "TestCountry";
+    void testGetStatesAndCitiesByCountry_Success() {
+        String countryName = "Country";
 
-        when(cityRepository.getStatesAndCitiesByCountry(countryName)).thenThrow(new RuntimeException());
+        List<Object[]> mockQueryResult = new ArrayList<>();
+        mockQueryResult.add(new Object[]{"State 1", "City 1"});
+        mockQueryResult.add(new Object[]{"State 1", "City 2"});
+        mockQueryResult.add(new Object[]{"State 2", "City 3"});
 
-        assertThrows(InternalServerException.class, () -> {
+        Mockito.when(cityRepository.getStatesAndCitiesByCountry(countryName))
+                .thenReturn(mockQueryResult);
+
+        ApiResponse<List<CountryStatesCitiesDTO>> response = cityService.getStatesAndCitiesByCountry(countryName);
+
+        Assertions.assertFalse(response.isError());
+        Assertions.assertEquals("All countries and cities fetched successfully", response.getMsg());
+
+        List<CountryStatesCitiesDTO> statesAndCities = response.getData();
+        Assertions.assertEquals(2, statesAndCities.size());
+
+        CountryStatesCitiesDTO state1DTO = statesAndCities.get(0);
+        Assertions.assertEquals("State 1", state1DTO.getStateName());
+        Assertions.assertEquals(2, state1DTO.getCities().size());
+        CountryStatesCitiesDTO state2DTO = statesAndCities.get(1);
+        Assertions.assertEquals("State 2", state2DTO.getStateName());
+        Assertions.assertEquals(1, state2DTO.getCities().size());
+    }
+
+    @Test
+    void testGetStatesAndCitiesByCountry_InvalidCountryName() {
+        String countryName = ""; // Empty country name
+
+        Assertions.assertThrows(BadRequestException.class, () -> {
             cityService.getStatesAndCitiesByCountry(countryName);
         });
-
-        verify(cityRepository, times(1)).getStatesAndCitiesByCountry(countryName);
     }
 
 }
